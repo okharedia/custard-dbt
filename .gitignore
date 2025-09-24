@@ -1,0 +1,26 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+dbt_internal_packages/
+target/
+target/
+
+dbt_packages/
+logs/
+deployment-updated.yaml
+notes/
+.DS_Store
+edr_target/
+__pycache__/
+.idea
+*.code-workspace
+.vscode/
+.nao.env
+dbt_internal_packages/
