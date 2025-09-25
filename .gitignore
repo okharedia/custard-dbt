@@ -24,3 +24,4 @@ __pycache__/
 .vscode/
 .nao.env
 dbt_internal_packages/
+mcp.json
