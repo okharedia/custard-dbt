@@ -44,7 +44,7 @@ sources:
               - not_null
               - relationships:
                   arguments:
-                    to: ref('households')
+                    to: source('public', 'households')
                     field: id
           - name: created_at
             description: "The date and time the parent was created"
@@ -60,7 +60,7 @@ sources:
               - not_null
               - relationships:
                   arguments:
-                    to: ref('parents')
+                    to: source('public', 'parents')
                     field: id
           - name: calendar
             description: "The ical calendar format of the schedule"
@@ -86,7 +86,7 @@ sources:
               - not_null
               - relationships:
                   arguments:
-                    to: ref('parents')
+                    to: source('public', 'parents')
                     field: id
 
       - name: additional_agreements
@@ -100,7 +100,7 @@ sources:
               - not_null
               - relationships:
                   arguments:
-                    to: ref('parents')
+                    to: source('public', 'parents')
                     field: id
           - name: to_parent_id
             description: "The id of the parent receiving the additional agreement"
@@ -108,11 +108,12 @@ sources:
               - not_null
               - relationships:
                   arguments:
-                    to: ref('parents')
+                    to: source('public', 'parents')
                     field: id
               - dbt_utils.expression_is_true:
                   arguments:
-                    expression: "from_parent_id <> to_parent_id"
+                    expression: "<> to_parent_id"
+                    column_name: from_parent_id
           - name: during
             description: "The start and end time of the additional agreement"
             data_tests:
@@ -129,13 +130,13 @@ sources:
       - name: additional_agreements_details
         description: "The additional agreements details table"
         columns:
-          - name: additional_agreement_id
+          - name: additional_agreements_id
             description: "The id of the additional agreement the detail belongs to"
             data_tests:
               - not_null
               - relationships:
                   arguments:
-                    to: ref('additional_agreements')
+                    to: source('public', 'additional_agreements')
                     field: id
           - name: reason
             description: "The reason for the additional agreement"
