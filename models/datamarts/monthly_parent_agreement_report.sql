@@ -30,7 +30,22 @@ select
   -- totals
   (sum(base_seconds) + sum(additional_received_seconds) - sum(additional_given_seconds)) as total_seconds,
   round((sum(base_seconds) + sum(additional_received_seconds) - sum(additional_given_seconds)) / 3600.0, 2)  as total_hours,
-  round((sum(base_seconds) + sum(additional_received_seconds) - sum(additional_given_seconds)) / 86400.0, 2) as total_days
+  round((sum(base_seconds) + sum(additional_received_seconds) - sum(additional_given_seconds)) / 86400.0, 2) as total_days,
+  -- calendar month totals (length of the month)
+  (((date_trunc('month', day))::date + interval '1 month')::date - (date_trunc('month', day))::date)::int as month_total_days,
+  ((((date_trunc('month', day))::date + interval '1 month')::date - (date_trunc('month', day))::date) * 24)::int as month_total_hours,
+  ((((date_trunc('month', day))::date + interval '1 month')::date - (date_trunc('month', day))::date) * 86400)::int as month_total_seconds,
+  -- simplified totals
+  (((((date_trunc('month', day))::date + interval '1 month')::date - (date_trunc('month', day))::date) * 86400)::int / 2
+    + sum(additional_net_seconds))                                                       as total_simplified_seconds,
+  round(
+    ((((date_trunc('month', day))::date + interval '1 month')::date - (date_trunc('month', day))::date) * 86400.0) / 2.0
+    + sum(additional_net_seconds)
+  , 2) / 3600.0                                                                          as total_simplified_hours,
+  round(
+    ((((date_trunc('month', day))::date + interval '1 month')::date - (date_trunc('month', day))::date) * 86400.0) / 2.0
+    + sum(additional_net_seconds)
+  , 2) / 86400.0                                                                         as total_simplified_days
 from daily
 group by 1,2,3,4
 order by month, parent_name
