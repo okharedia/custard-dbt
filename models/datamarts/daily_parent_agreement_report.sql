@@ -42,7 +42,7 @@ base_overlap as (
     greatest(lower(b.during), d.day_start) as seg_start,
     least(upper(b.during), d.day_end)       as seg_end
   from date_spine d
-  join {{ ref('base_agreements') if false else 'public.base_agreements' }} b
+  join {{ source('public', 'base_agreements') }} b
     on b.during && d.day_range
 ),
 base_durations as (
@@ -62,7 +62,7 @@ add_rcv_overlap as (
     greatest(lower(a.during), d.day_start) as seg_start,
     least(upper(a.during), d.day_end)       as seg_end
   from date_spine d
-  join {{ ref('additional_agreements') if false else 'public.additional_agreements' }} a
+  join {{ source('public', 'additional_agreements') }} a
     on a.during && d.day_range
 ),
 add_rcv as (
@@ -82,7 +82,7 @@ add_gvn_overlap as (
     greatest(lower(a.during), d.day_start) as seg_start,
     least(upper(a.during), d.day_end)       as seg_end
   from date_spine d
-  join {{ ref('additional_agreements') if false else 'public.additional_agreements' }} a
+  join {{ source('public', 'additional_agreements') }} a
     on a.during && d.day_range
 ),
 add_gvn as (
