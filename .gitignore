@@ -25,3 +25,4 @@ __pycache__/
 .nao.env
 dbt_internal_packages/
 mcp.json
+service_account.json

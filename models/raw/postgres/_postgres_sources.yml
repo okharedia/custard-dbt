@@ -2,8 +2,8 @@ version: 2
 
 sources:
   - name: public
-    database: postgres
-    schema: public
+    database: custard-473406
+    schema: datastream_public
     tables:
       - name: households
         description: "The households table"
@@ -76,10 +76,17 @@ sources:
         columns:
           - name: id
             description: "The primary key for this table"
-          - name: during
-            description: "The start and end time of the base agreement"
+            data_tests:
+              - unique
+              - not_null
+          - name: start_time
+            description: "The start time of the base agreement"
             data_tests:
               - not_null
+          - name: end_time
+            description: "The end time of the base agreement"
+            data_tests:
+              - not_null    
           - name: parent_id
             description: "The id of the parent the base agreement belongs to"
             data_tests:
@@ -94,6 +101,9 @@ sources:
         columns:
           - name: id
             description: "The primary key for this table"
+            data_tests:
+              - unique
+              - not_null
           - name: from_parent_id
             description: "The id of the parent giving the additional agreement"
             data_tests:
@@ -114,8 +124,12 @@ sources:
                   arguments:
                     expression: "<> to_parent_id"
                     column_name: from_parent_id
-          - name: during
-            description: "The start and end time of the additional agreement"
+          - name: start_time
+            description: "The start time of the additional agreement"
+            data_tests:
+              - not_null
+          - name: end_time
+            description: "The end time of the additional agreement"
             data_tests:
               - not_null
           - name: created_at

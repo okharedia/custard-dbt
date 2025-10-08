@@ -11,24 +11,22 @@ Vars (with sensible defaults)
 {% set household_id = var('household_id', none) %}
 
 with
--- 1) Day spine in tz-aware timestamps [day_start, day_end)
+-- 1) Day spine in timestamps [day_start, day_end)
 date_spine as (
   select
-    dd::date as day,
-    dd::timestamptz as day_start,
-    (dd::date + interval '1 day')::timestamptz as day_end,
-    tstzrange(dd::timestamptz, (dd::date + interval '1 day')::timestamptz, '[)') as day_range
-  from generate_series(
-    '{{ start_date }}'::date,
-    ('{{ end_date }}'::date - 1),
-    interval '1 day'
-  ) as dd
+    date as day,
+    TIMESTAMP(date) as day_start,
+    TIMESTAMP(DATE_ADD(date, INTERVAL 1 DAY)) as day_end
+  from UNNEST(GENERATE_DATE_ARRAY(
+    DATE('{{ start_date }}'),
+    DATE_SUB(DATE('{{ end_date }}'), INTERVAL 1 DAY)
+  )) as date
 ),
 
 -- 2) Parents (optionally restricted to a household)
 parents as (
   select p.id as parent_id, p.name, p.household_id
-  from {{ ref('parents') if false else 'public.parents' }} p
+  from {{ source('public', 'parents') }} p
   {% if household_id %}
   where p.household_id = {{ "'" ~ household_id ~ "'" }}::uuid
   {% endif %}
@@ -39,17 +37,18 @@ base_overlap as (
   select
     d.day,
     b.parent_id,
-    greatest(lower(b.during), d.day_start) as seg_start,
-    least(upper(b.during), d.day_end)       as seg_end
+    greatest(b.start_time, d.day_start) as seg_start,
+    least(b.end_time, d.day_end) as seg_end
   from date_spine d
   join {{ source('public', 'base_agreements') }} b
-    on b.during && d.day_range
+    on b.start_time < d.day_end 
+    and b.end_time > d.day_start
 ),
 base_durations as (
   select
     day,
     parent_id,
-    sum( greatest(0, extract(epoch from (seg_end - seg_start))) )::bigint as base_seconds
+    sum(greatest(0, CAST(TIMESTAMP_DIFF(seg_end, seg_start, SECOND) AS INT64))) as base_seconds
   from base_overlap
   group by 1,2
 ),
@@ -59,17 +58,18 @@ add_rcv_overlap as (
   select
     d.day,
     a.to_parent_id as parent_id,
-    greatest(lower(a.during), d.day_start) as seg_start,
-    least(upper(a.during), d.day_end)       as seg_end
+    greatest(a.start_time, d.day_start) as seg_start,
+    least(a.end_time, d.day_end) as seg_end
   from date_spine d
   join {{ source('public', 'additional_agreements') }} a
-    on a.during && d.day_range
+    on a.start_time < d.day_end 
+    and a.end_time > d.day_start
 ),
 add_rcv as (
   select
     day,
     parent_id,
-    sum( greatest(0, extract(epoch from (seg_end - seg_start))) )::bigint as add_received_seconds
+    sum(greatest(0, CAST(TIMESTAMP_DIFF(seg_end, seg_start, SECOND) AS INT64))) as add_received_seconds
   from add_rcv_overlap
   group by 1,2
 ),
@@ -79,24 +79,25 @@ add_gvn_overlap as (
   select
     d.day,
     a.from_parent_id as parent_id,
-    greatest(lower(a.during), d.day_start) as seg_start,
-    least(upper(a.during), d.day_end)       as seg_end
+    greatest(a.start_time, d.day_start) as seg_start,
+    least(a.end_time, d.day_end) as seg_end
   from date_spine d
   join {{ source('public', 'additional_agreements') }} a
-    on a.during && d.day_range
+    on a.start_time < d.day_end 
+    and a.end_time > d.day_start
 ),
 add_gvn as (
   select
     day,
     parent_id,
-    sum( greatest(0, extract(epoch from (seg_end - seg_start))) )::bigint as add_given_seconds
+    sum(greatest(0, CAST(TIMESTAMP_DIFF(seg_end, seg_start, SECOND) AS INT64))) as add_given_seconds
   from add_gvn_overlap
   group by 1,2
 )
 
 -- 6) Final rollup per parent x day
 select
-  d.day::date                                          as day,
+  CAST(d.day AS DATE)                                  as day,
   p.parent_id,
   p.name                                               as parent_name,
   p.household_id,
