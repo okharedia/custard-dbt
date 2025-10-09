@@ -1,4 +1,4 @@
--- models/daily_parent_agreement_report.sql
+-- models/datamarts/daily_parent_agreement_report.sql
 {{ config(
     materialized='view'
 ) }}
@@ -23,98 +23,65 @@ date_spine as (
   )) as date
 ),
 
--- 2) Parents (optionally restricted to a household)
+-- 2) Get parents from staging
 parents as (
-  select p.id as parent_id, p.name, p.household_id
-  from {{ source('public', 'parents') }} p
-  {% if household_id %}
-  where p.household_id = {{ "'" ~ household_id ~ "'" }}::uuid
-  {% endif %}
+  select * from {{ ref('stg_parents') }}
 ),
 
--- 3) Base agreement overlap (per parent x day)
-base_overlap as (
-  select
-    d.day,
-    b.parent_id,
-    greatest(b.start_time, d.day_start) as seg_start,
-    least(b.end_time, d.day_end) as seg_end
-  from date_spine d
-  join {{ source('public', 'base_agreements') }} b
-    on b.start_time < d.day_end 
-    and b.end_time > d.day_start
-),
+-- 3) Get base agreement durations from staging
 base_durations as (
-  select
-    day,
-    parent_id,
-    sum(greatest(0, CAST(TIMESTAMP_DIFF(seg_end, seg_start, SECOND) AS INT64))) as base_seconds
-  from base_overlap
-  group by 1,2
+  select * from {{ ref('stg_base_agreements_daily') }}
 ),
 
--- 4) Additional agreements RECEIVED (to_parent) overlap
-add_rcv_overlap as (
-  select
-    d.day,
-    a.to_parent_id as parent_id,
-    greatest(a.start_time, d.day_start) as seg_start,
-    least(a.end_time, d.day_end) as seg_end
-  from date_spine d
-  join {{ source('public', 'additional_agreements') }} a
-    on a.start_time < d.day_end 
-    and a.end_time > d.day_start
-),
-add_rcv as (
+-- 4) Get additional agreement durations from staging and pivot
+additional_agreements_pivoted as (
   select
     day,
     parent_id,
-    sum(greatest(0, CAST(TIMESTAMP_DIFF(seg_end, seg_start, SECOND) AS INT64))) as add_received_seconds
-  from add_rcv_overlap
-  group by 1,2
+    sum(case when agreement_type = 'received' then seconds else 0 end) as add_received_seconds,
+    sum(case when agreement_type = 'given' then seconds else 0 end) as add_given_seconds
+  from {{ ref('stg_additional_agreements_daily') }}
+  group by 1, 2
 ),
 
--- 5) Additional agreements GIVEN (from_parent) overlap
-add_gvn_overlap as (
+-- 5) Calculate coalesced values once to avoid repetition
+calculated_values as (
   select
-    d.day,
-    a.from_parent_id as parent_id,
-    greatest(a.start_time, d.day_start) as seg_start,
-    least(a.end_time, d.day_end) as seg_end
+    CAST(d.day AS DATE) as day,
+    p.parent_id,
+    p.name as parent_name,
+    p.household_id,
+    coalesce(b.base_seconds, 0) as base_seconds,
+    coalesce(a.add_received_seconds, 0) as additional_received_seconds,
+    coalesce(a.add_given_seconds, 0) as additional_given_seconds
   from date_spine d
-  join {{ source('public', 'additional_agreements') }} a
-    on a.start_time < d.day_end 
-    and a.end_time > d.day_start
-),
-add_gvn as (
-  select
-    day,
-    parent_id,
-    sum(greatest(0, CAST(TIMESTAMP_DIFF(seg_end, seg_start, SECOND) AS INT64))) as add_given_seconds
-  from add_gvn_overlap
-  group by 1,2
+  cross join parents p
+  left join base_durations b on b.day = d.day and b.parent_id = p.parent_id
+  left join additional_agreements_pivoted a on a.day = d.day and a.parent_id = p.parent_id
 )
 
--- 6) Final rollup per parent x day
+-- 6) Final rollup per parent x day with calculated fields
 select
-  CAST(d.day AS DATE)                                  as day,
-  p.parent_id,
-  p.name                                               as parent_name,
-  p.household_id,
-  coalesce(b.base_seconds, 0)                          as base_seconds,
-  coalesce(r.add_received_seconds, 0)                  as additional_received_seconds,
-  coalesce(g.add_given_seconds, 0)                     as additional_given_seconds,
-  (coalesce(r.add_received_seconds,0) - coalesce(g.add_given_seconds,0)) as additional_net_seconds,
+  day,
+  parent_id,
+  parent_name,
+  household_id,
+  base_seconds,
+  additional_received_seconds,
+  additional_given_seconds,
+  (additional_received_seconds - additional_given_seconds) as additional_net_seconds,
+  (base_seconds + (additional_received_seconds - additional_given_seconds)) as net_seconds,
   -- convenient hour views
-  round(coalesce(b.base_seconds,0) / 3600.0, 2)        as base_hours,
-  round(coalesce(r.add_received_seconds,0) / 3600.0, 2) as additional_received_hours,
-  round(coalesce(g.add_given_seconds,0) / 3600.0, 2)    as additional_given_hours,
-  round(
-    (coalesce(r.add_received_seconds,0) - coalesce(g.add_given_seconds,0)) / 3600.0
-  , 2)                                                 as additional_net_hours
-from date_spine d
-cross join parents p
-left join base_durations b on b.day = d.day and b.parent_id = p.parent_id
-left join add_rcv        r on r.day = d.day and r.parent_id = p.parent_id
-left join add_gvn        g on g.day = d.day and g.parent_id = p.parent_id
+  round(base_seconds / 3600.0, 2) as base_hours,
+  round(additional_received_seconds / 3600.0, 2) as additional_received_hours,
+  round(additional_given_seconds / 3600.0, 2) as additional_given_hours,
+  round((additional_received_seconds - additional_given_seconds) / 3600.0, 2) as additional_net_hours,
+  round((base_seconds + (additional_received_seconds - additional_given_seconds)) / 3600.0, 2) as net_hours,
+  -- convenient day views
+  round(base_seconds / 86400.0, 2) as base_days,
+  round(additional_received_seconds / 86400.0, 2) as additional_received_days,
+  round(additional_given_seconds / 86400.0, 2) as additional_given_days,
+  round((additional_received_seconds - additional_given_seconds) / 86400.0, 2) as additional_net_days,
+  round((base_seconds + (additional_received_seconds - additional_given_seconds)) / 86400.0, 2) as net_days
+from calculated_values
 order by day, parent_name

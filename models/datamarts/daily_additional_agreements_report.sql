@@ -10,68 +10,62 @@ Vars (with sensible defaults)
 {% set end_date   = var('end_date',   (modules.datetime.date.today() + modules.datetime.timedelta(days=365 * 10)).isoformat()) %}
 
 with
--- 1) Day spine in timestamps [day_start, day_end)
-date_spine as (
-  select
-    date as day,
-    TIMESTAMP(date) as day_start,
-    TIMESTAMP(DATE_ADD(date, INTERVAL 1 DAY)) as day_end
-  from UNNEST(GENERATE_DATE_ARRAY(
-    DATE('{{ start_date }}'),
-    DATE_SUB(DATE('{{ end_date }}'), INTERVAL 1 DAY)
-  )) as date
+-- 1) Get detailed additional agreements from staging
+additional_agreements_detailed as (
+  select * from {{ ref('stg_additional_agreements_detailed') }}
 ),
 
--- 2) Additional agreements overlap with each day
-add_overlap as (
-  select
-    d.day,
-    a.from_parent_id as from_parent_id,
-    a.to_parent_id as to_parent_id,
-    a.id as agreement_id,
-    ad.reason as reason,
-    GREATEST(a.start_time, d.day_start) as seg_start,
-    LEAST(a.end_time, d.day_end) as seg_end
-  from date_spine d
-  join {{ source('public', 'additional_agreements') }} a 
-    on a.start_time < d.day_end 
-    and a.end_time > d.day_start
-  join {{ source('public', 'additional_agreements_details') }} ad
-    on ad.additional_agreements_id = a.id
+-- 2) Get parents from staging
+parents as (
+  select * from {{ ref('stg_parents') }}
 ),
 
--- 3) Aggregate per day x reason
-agg as (
+-- 3) Join with parent names and calculate derived values
+calculated_values as (
   select
-    day,
-    agreement_id,
-    reason,
-    from_parent_id,
-    to_parent_id,
-    COUNT(DISTINCT agreement_id) as agreements_count,
-    CAST(SUM(GREATEST(0, TIMESTAMP_DIFF(seg_end, seg_start, SECOND))) AS INT64) as duration_seconds
-  from add_overlap
-  group by 1,2,3,4,5
+    a.day,
+    a.reason,
+    a.from_parent_id,
+    a.to_parent_id,
+    p.name as from_parent_name,
+    p2.name as to_parent_name,
+    a.agreements_count,
+    a.agreement_id,
+    a.duration_seconds
+  from additional_agreements_detailed a
+  left join parents p on p.parent_id = a.from_parent_id
+  left join parents p2 on p2.parent_id = a.to_parent_id
 )
 
--- 4) Final projection
+-- 4) Final projection with calculated fields
+, final_values as (
 select
-  DATE(day) as day,
+  day,
   reason,
   from_parent_id,
   to_parent_id,
-  p.name as from_parent_name,
-  p2.name as to_parent_name,
+  from_parent_name,
+  to_parent_name,
   agreements_count,
   agreement_id,
   duration_seconds,
+  -- convenient time unit views
   ROUND(CAST(duration_seconds AS FLOAT64) / 3600.0, 2) as duration_hours,
   ROUND(CAST(duration_seconds AS FLOAT64) / 86400.0, 2) as duration_days
-from agg
-left join {{ source('public', 'parents') }} p
-  on p.id = from_parent_id
-left join {{ source('public', 'parents') }} p2
-  on p2.id = to_parent_id
+from calculated_values
 order by day, reason
+)
 
+select 
+  agreement_id,
+  from_parent_name,
+  to_parent_name,
+  min(reason) as reason,
+  min(day) as day,
+  sum(duration_seconds) as duration_seconds,
+  sum(duration_hours) as duration_hours,
+  sum(duration_days) as duration_days
+from final_values
+group by 1,2,3
+order by day
 

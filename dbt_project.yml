@@ -34,6 +34,14 @@ models:
     # Config indicated by + and applies to all files under models/example/
     example:
       +materialized: view
+    
+    # Staging models - materialized as tables for better performance
+    staging:
+      +materialized: table
+    
+    # Datamart models - materialized as views for freshness
+    datamarts:
+      +materialized: view
 
 dbt-cloud:
     project-id: 70471823513049
