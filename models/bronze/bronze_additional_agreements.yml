@@ -106,5 +106,147 @@ models:
               1, 4
             ) as integer) = extract(year from start_time)
           name: "parsing_preserves_datetime_values"
-unit: 
-  given: 
+    
+    # Unit tests with given input and expected output
+    unit_tests:
+      - name: test_interval_parsing_inclusive_exclusive
+        description: "Test standard [) format - includes start, excludes end"
+        given:
+          - input: ref('raw_additional_agreements')
+            rows:
+              - id: test-uuid-1
+                from_parent_id: parent-1
+                to_parent_id: parent-2
+                during: "[2025-01-01 00:00:00+00:00,2025-01-02 00:00:00+00:00)"
+                created_at: "2025-01-01 00:00:00"
+                updated_at: "2025-01-01 00:00:00"
+        expect:
+          rows:
+            - agreement_id: test-uuid-1
+              from_parent_id: parent-1
+              to_parent_id: parent-2
+              during: "[2025-01-01 00:00:00+00:00,2025-01-02 00:00:00+00:00)"
+              start_time: "2025-01-01 00:00:00"
+              end_time: "2025-01-02 00:00:00"
+      
+      - name: test_interval_parsing_exclusive_inclusive
+        description: "Test (] format - excludes start, includes end"
+        given:
+          - input: ref('raw_additional_agreements')
+            rows:
+              - id: test-uuid-2
+                from_parent_id: parent-1
+                to_parent_id: parent-2
+                during: "(2025-01-01 00:00:00+00:00,2025-01-02 00:00:00+00:00]"
+                created_at: "2025-01-01 00:00:00"
+                updated_at: "2025-01-01 00:00:00"
+        expect:
+          rows:
+            - agreement_id: test-uuid-2
+              start_time: "2025-01-01 00:00:00"
+              end_time: "2025-01-02 00:00:00"
+      
+      - name: test_interval_parsing_both_exclusive
+        description: "Test () format - excludes both boundaries"
+        given:
+          - input: ref('raw_additional_agreements')
+            rows:
+              - id: test-uuid-3
+                from_parent_id: parent-1
+                to_parent_id: parent-2
+                during: "(2025-01-01 00:00:00+00:00,2025-01-02 00:00:00+00:00)"
+                created_at: "2025-01-01 00:00:00"
+                updated_at: "2025-01-01 00:00:00"
+        expect:
+          rows:
+            - agreement_id: test-uuid-3
+              start_time: "2025-01-01 00:00:00"
+              end_time: "2025-01-02 00:00:00"
+      
+      - name: test_interval_parsing_both_inclusive
+        description: "Test [] format - includes both boundaries"
+        given:
+          - input: ref('raw_additional_agreements')
+            rows:
+              - id: test-uuid-4
+                from_parent_id: parent-1
+                to_parent_id: parent-2
+                during: "[2025-01-01 00:00:00+00:00,2025-01-02 00:00:00+00:00]"
+                created_at: "2025-01-01 00:00:00"
+                updated_at: "2025-01-01 00:00:00"
+        expect:
+          rows:
+            - agreement_id: test-uuid-4
+              start_time: "2025-01-01 00:00:00"
+              end_time: "2025-01-02 00:00:00"
+      
+      - name: test_interval_parsing_with_specific_times
+        description: "Test parsing with specific hour/minute values"
+        given:
+          - input: ref('raw_additional_agreements')
+            rows:
+              - id: test-uuid-5
+                from_parent_id: parent-1
+                to_parent_id: parent-2
+                during: "[2025-06-15 14:30:00+00:00,2025-06-15 18:45:00+00:00)"
+                created_at: "2025-01-01 00:00:00"
+                updated_at: "2025-01-01 00:00:00"
+        expect:
+          rows:
+            - agreement_id: test-uuid-5
+              start_time: "2025-06-15 14:30:00"
+              end_time: "2025-06-15 18:45:00"
+      
+      - name: test_interval_parsing_multi_day_real_example
+        description: "Test 7-day transfer (real example from Aug 15-22)"
+        given:
+          - input: ref('raw_additional_agreements')
+            rows:
+              - id: test-uuid-6
+                from_parent_id: parent-1
+                to_parent_id: parent-2
+                during: "[2025-08-15 00:00:00+00:00,2025-08-22 00:00:00+00:00)"
+                created_at: "2025-01-01 00:00:00"
+                updated_at: "2025-01-01 00:00:00"
+        expect:
+          rows:
+            - agreement_id: test-uuid-6
+              start_time: "2025-08-15 00:00:00"
+              end_time: "2025-08-22 00:00:00"
+      
+      - name: test_interval_parsing_midnight_boundary
+        description: "Test parsing across midnight/year boundaries"
+        given:
+          - input: ref('raw_additional_agreements')
+            rows:
+              - id: test-uuid-7
+                from_parent_id: parent-1
+                to_parent_id: parent-2
+                during: "[2025-12-31 22:00:00+00:00,2026-01-01 02:00:00+00:00)"
+                created_at: "2025-01-01 00:00:00"
+                updated_at: "2025-01-01 00:00:00"
+        expect:
+          rows:
+            - agreement_id: test-uuid-7
+              start_time: "2025-12-31 22:00:00"
+              end_time: "2026-01-01 02:00:00"
+      
+      - name: test_no_timezone_shift_on_utc_timestamps
+        description: "Critical test: Ensure UTC timestamps don't get shifted (the 2-hour bug we fixed!)"
+        given:
+          - input: ref('raw_additional_agreements')
+            rows:
+              - id: test-uuid-8
+                from_parent_id: parent-1
+                to_parent_id: parent-2
+                during: "[2025-08-15 00:00:00+00:00,2025-08-22 00:00:00+00:00)"
+                created_at: "2025-01-01 00:00:00"
+                updated_at: "2025-01-01 00:00:00"
+        expect:
+          rows:
+            - agreement_id: test-uuid-8
+              # Should parse to 00:00, NOT 02:00!
+              start_time: "2025-08-15 00:00:00"
+              end_time: "2025-08-22 00:00:00"
+              # This would fail if we had the AT TIME ZONE 'UTC' bug:
+              # start_time: "2025-08-15 02:00:00" ❌ 
