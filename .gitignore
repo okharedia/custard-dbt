@@ -26,3 +26,6 @@ __pycache__/
 dbt_internal_packages/
 mcp.json
 service_account.json
+
+# User-specific files
+.user.yml

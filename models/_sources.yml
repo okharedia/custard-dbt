@@ -22,3 +22,104 @@ sources:
           - name: updated_at
             tests:
               - not_null
+      - name: raw_parents
+        description: "Parent information"
+        columns:
+          - name: id
+            description: "Unique identifier for parent"
+            tests:
+              - unique
+              - not_null
+          - name: name
+            tests:
+              - not_null
+          - name: household_id
+            description: "Foreign key to households table"
+            tests:
+              - not_null
+          - name: created_at
+            tests:
+              - not_null
+          - name: updated_at
+            tests:
+              - not_null
+      - name: raw_schedules
+        description: "Parent schedule information"
+        columns:
+          - name: parent_id
+            description: "Foreign key to parents table"
+            tests:
+              - unique
+              - not_null
+          - name: calendar
+            description: "Calendar data in iCal format"
+            tests:
+              - not_null
+          - name: created_at
+            tests:
+              - not_null
+          - name: updated_at
+            tests:
+              - not_null
+      - name: raw_additional_agreements
+        description: "Additional custody agreements"
+        columns:
+          - name: id
+            description: "Unique identifier for additional agreement"
+            tests:
+              - unique
+              - not_null
+          - name: from_parent_id
+            description: "Parent giving up custody"
+            tests:
+              - not_null
+          - name: to_parent_id
+            description: "Parent receiving custody"
+            tests:
+              - not_null
+          - name: during
+            description: "Time period for the agreement"
+            tests:
+              - not_null
+          - name: created_at
+            tests:
+              - not_null
+          - name: updated_at
+            tests:
+              - not_null
+      - name: raw_additional_agreements_details
+        description: "Details for additional agreements"
+        columns:
+          - name: additional_agreements_id
+            description: "Foreign key to additional agreements"
+            tests:
+              - unique
+              - not_null
+          - name: reason
+            description: "Reason for the additional agreement"
+            tests:
+              - not_null
+          - name: created_at
+            tests:
+              - not_null
+          - name: updated_at
+            tests:
+              - not_null
+      - name: raw_schedule_agreements
+        description: "Schedule-based agreements"
+        columns:
+          - name: start_at
+            description: "Agreement start time"
+          - name: end_at
+            description: "Agreement end time"
+          - name: schedule_id
+            description: "Reference to schedule"
+          - name: _dlt_load_id
+            description: "DLT load identifier"
+            tests:
+              - not_null
+          - name: _dlt_id
+            description: "DLT record identifier"
+            tests:
+              - unique
+              - not_null

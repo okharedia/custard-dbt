@@ -21,3 +21,159 @@ models:
         description: "Timestamp when dbt loaded this record"
       - name: _dbt_layer
         description: "Data layer identifier"
+
+  - name: bronze_parents
+    description: "Raw parent data with basic cleaning applied"
+    columns:
+      - name: parent_id
+        description: "Unique identifier for parent"
+        tests:
+          - unique
+          - not_null
+      - name: parent_name
+        description: "Name of the parent"
+        tests:
+          - not_null
+      - name: household_id
+        description: "Foreign key to households table"
+        tests:
+          - not_null
+      - name: created_at
+        description: "Timestamp when record was created"
+      - name: updated_at
+        description: "Timestamp when record was last updated"
+      - name: _dbt_loaded_at
+        description: "Timestamp when dbt loaded this record"
+      - name: _dbt_layer
+        description: "Data layer identifier"
+
+  - name: bronze_schedules
+    description: "Raw schedule data with basic cleaning applied"
+    columns:
+      - name: parent_id
+        description: "Foreign key to parents table"
+        tests:
+          - unique
+          - not_null
+      - name: calendar
+        description: "Calendar data in iCal format"
+        tests:
+          - not_null
+      - name: created_at
+        description: "Timestamp when record was created"
+      - name: updated_at
+        description: "Timestamp when record was last updated"
+      - name: _dbt_loaded_at
+        description: "Timestamp when dbt loaded this record"
+      - name: _dbt_layer
+        description: "Data layer identifier"
+
+  - name: bronze_base_agreements
+    description: "Raw base agreements data with basic cleaning applied"
+    columns:
+      - name: agreement_id
+        description: "Unique identifier for base agreement"
+        tests:
+          - unique
+          - not_null
+      - name: during
+        description: "Time period for the agreement"
+        tests:
+          - not_null
+      - name: parent_id
+        description: "Foreign key to parents table"
+        tests:
+          - not_null
+      - name: start_time
+        description: "Agreement start time"
+        tests:
+          - not_null
+      - name: end_time
+        description: "Agreement end time"
+        tests:
+          - not_null
+      - name: _dbt_loaded_at
+        description: "Timestamp when dbt loaded this record"
+      - name: _dbt_layer
+        description: "Data layer identifier"
+
+  - name: bronze_additional_agreements
+    description: "Raw additional agreements data with basic cleaning applied"
+    columns:
+      - name: agreement_id
+        description: "Unique identifier for additional agreement"
+        tests:
+          - unique
+          - not_null
+      - name: from_parent_id
+        description: "Parent giving up custody"
+        tests:
+          - not_null
+      - name: to_parent_id
+        description: "Parent receiving custody"
+        tests:
+          - not_null
+      - name: during
+        description: "Time period for the agreement"
+        tests:
+          - not_null
+      - name: created_at
+        description: "Timestamp when record was created"
+      - name: updated_at
+        description: "Timestamp when record was last updated"
+      - name: start_time
+        description: "Agreement start time"
+        tests:
+          - not_null
+      - name: end_time
+        description: "Agreement end time"
+        tests:
+          - not_null
+      - name: _dbt_loaded_at
+        description: "Timestamp when dbt loaded this record"
+      - name: _dbt_layer
+        description: "Data layer identifier"
+
+  - name: bronze_additional_agreements_details
+    description: "Raw additional agreements details data with basic cleaning applied"
+    columns:
+      - name: additional_agreements_id
+        description: "Foreign key to additional agreements"
+        tests:
+          - unique
+          - not_null
+      - name: reason
+        description: "Reason for the additional agreement"
+        tests:
+          - not_null
+      - name: created_at
+        description: "Timestamp when record was created"
+      - name: updated_at
+        description: "Timestamp when record was last updated"
+      - name: _dbt_loaded_at
+        description: "Timestamp when dbt loaded this record"
+      - name: _dbt_layer
+        description: "Data layer identifier"
+
+  - name: bronze_schedule_agreements
+    description: "Raw schedule agreements data with basic cleaning applied"
+    columns:
+      - name: start_at
+        description: "Agreement start time"
+      - name: end_at
+        description: "Agreement end time"
+      - name: schedule_id
+        description: "Reference to schedule"
+      - name: _dlt_load_id
+        description: "DLT load identifier"
+        tests:
+          - not_null
+      - name: _dlt_id
+        description: "DLT record identifier"
+        tests:
+          - unique
+          - not_null
+      - name: _dbt_loaded_at
+        description: "Timestamp when dbt loaded this record"
+      - name: _dbt_layer
+        description: "Data layer identifier"
