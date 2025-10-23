@@ -1,0 +1,10 @@
+# dbt profiles configuration for custard project
+
+custard:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb 
+      path: "/Users/republik/Dev/custard-dlt/custard.duckdb"
+      schema: "main"
+      threads: 4
