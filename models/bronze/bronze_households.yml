@@ -1,0 +1,24 @@
+version: 2
+
+models:
+  - name: bronze_households
+    description: "Raw household data with basic cleaning applied"
+    columns:
+      - name: household_id
+        description: "Unique identifier for household"
+        tests:
+          - unique
+          - not_null
+      - name: household_name
+        description: "Name of the household"
+        tests:
+          - not_null
+      - name: created_at
+        description: "Timestamp when record was created"
+      - name: updated_at
+        description: "Timestamp when record was last updated"
+      - name: _dbt_loaded_at
+        description: "Timestamp when dbt loaded this record"
+      - name: _dbt_layer
+        description: "Data layer identifier"
+

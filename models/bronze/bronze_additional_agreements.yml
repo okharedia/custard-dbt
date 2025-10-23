@@ -1,0 +1,110 @@
+version: 2
+
+models:
+  - name: bronze_additional_agreements
+    description: |
+      Raw additional agreements data with basic cleaning applied.
+      Parses PostgreSQL interval notation from the 'during' field.
+      
+      **Interval Notation Support:**
+      - `[start, end)` - Includes start, excludes end (standard)
+      - `(start, end]` - Excludes start, includes end
+      - `(start, end)` - Excludes both
+      - `[start, end]` - Includes both
+      
+      **Note:** Raw data is already in UTC (has +00:00 offset), so no timezone conversion is applied.
+    
+    columns:
+      - name: agreement_id
+        description: "Unique identifier for additional agreement"
+        tests:
+          - unique
+          - not_null
+      
+      - name: from_parent_id
+        description: "Parent giving up custody (requesting parent)"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('bronze_parents')
+              field: parent_id
+      
+      - name: to_parent_id
+        description: "Parent receiving custody (approving parent)"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('bronze_parents')
+              field: parent_id
+      
+      - name: during
+        description: "Time period for the agreement in PostgreSQL interval notation"
+        tests:
+          - not_null
+      
+      - name: start_time
+        description: "Parsed agreement start time (UTC)"
+        tests:
+          - not_null
+      
+      - name: end_time
+        description: "Parsed agreement end time (UTC)"
+        tests:
+          - not_null
+      
+      - name: created_at
+        description: "Timestamp when record was created"
+      
+      - name: updated_at
+        description: "Timestamp when record was last updated"
+      
+      - name: _dbt_loaded_at
+        description: "Timestamp when dbt loaded this record"
+      
+      - name: _dbt_layer
+        description: "Data layer identifier"
+    
+    # Model-level unit tests for interval parsing
+    tests:
+      # Test 1: Verify all parsed timestamps are valid (start < end)
+      - dbt_utils.expression_is_true:
+          expression: "start_time < end_time"
+          config:
+            where: "start_time is not null and end_time is not null"
+          name: "valid_time_intervals"
+      
+      # Test 2: Verify no timezone shifts (timestamps should match the +00:00 in raw data)
+      # This catches if we accidentally apply timezone conversion
+      - dbt_utils.expression_is_true:
+          expression: |
+            -- Extract hour from raw 'during' string and compare with parsed start_time
+            -- Example: '[2025-08-15 00:00:00+00:00,...' should parse to hour 0, not 2
+            cast(substring(
+              trim(both '[]()' from split_part(during, ',', 1)),
+              12, 2
+            ) as integer) = extract(hour from start_time)
+          config:
+            where: "during like '%+00:00%'"
+          name: "no_timezone_shift_on_parsing"
+      
+      # Test 3: Verify interval brackets are parsed correctly
+      - dbt_utils.expression_is_true:
+          expression: |
+            -- Verify we handle all bracket types
+            (during like '[%' and during like '%)') or
+            (during like '(%' and during like '%]') or  
+            (during like '(%' and during like '%)') or
+            (during like '[%' and during like '%]')
+          name: "valid_interval_notation"
+      
+      # Test 4: Verify parsed times match raw string content (no corruption)
+      - dbt_utils.expression_is_true:
+          expression: |
+            -- Extract year from raw string and verify it matches parsed timestamp
+            cast(substring(
+              trim(both '[]()' from split_part(during, ',', 1)),
+              1, 4
+            ) as integer) = extract(year from start_time)
+          name: "parsing_preserves_datetime_values"
+unit: 
+  given: 

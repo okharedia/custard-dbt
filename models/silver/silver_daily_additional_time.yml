@@ -1,0 +1,68 @@
+version: 2
+
+models:
+  - name: silver_daily_additional_time
+    description: |
+      Additional time transfers split by actual date per parent - handles multi-day agreements correctly.
+      
+      This model takes multi-day additional agreements and splits them across the actual 
+      dates they span, properly accounting for time transfers between parents.
+      
+      **Key Features:**
+      - Handles multi-day transfers (e.g., giving away a week)
+      - Negative values = time given away by this parent
+      - Positive values = time received by this parent
+      - Includes reasons for all transfers
+      - Preserves zero-sum property (total across all parents = 0)
+    
+    columns:
+      - name: report_date
+        description: "Date for the time transfer"
+        tests:
+          - not_null
+      
+      - name: parent_id
+        description: "Parent identifier"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('bronze_parents')
+              field: parent_id
+      
+      - name: total_transfer_seconds
+        description: "Net time transfer on this date in seconds (negative=given, positive=received)"
+        tests:
+          - not_null
+      
+      - name: total_transfer_hours
+        description: "Net time transfer on this date in hours (negative=given, positive=received)"
+        tests:
+          - not_null
+      
+      - name: num_agreements
+        description: "Number of additional agreements affecting this date"
+        tests:
+          - not_null
+      
+      - name: transfer_reasons
+        description: "Concatenated reasons for all transfers on this date"
+    
+    # Model-level tests
+    tests:
+      # Verify transfer hours match the calculated seconds
+      - dbt_utils.expression_is_true:
+          expression: "abs(total_transfer_hours - (total_transfer_seconds / 3600.0)) < 0.01"
+          name: "transfer_hours_seconds_consistency"
+      
+      # Verify zero-sum property: total transfers across all parents per day should sum to ~0
+      # (allowing for small rounding errors)
+      - dbt_utils.expression_is_true:
+          expression: |
+            report_date in (
+              select report_date
+              from {{ ref('silver_daily_additional_time') }}
+              group by report_date
+              having abs(sum(total_transfer_seconds)) < 1.0
+            )
+          name: "zero_sum_transfers_per_day"
+

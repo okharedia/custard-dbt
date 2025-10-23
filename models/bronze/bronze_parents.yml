@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: bronze_parents
+    description: "Raw parent data with basic cleaning applied"
+    columns:
+      - name: parent_id
+        description: "Unique identifier for parent"
+        tests:
+          - unique
+          - not_null
+      - name: parent_name
+        description: "Name of the parent"
+        tests:
+          - not_null
+      - name: household_id
+        description: "Foreign key to households table"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('bronze_households')
+              field: household_id
+      - name: created_at
+        description: "Timestamp when record was created"
+      - name: updated_at
+        description: "Timestamp when record was last updated"
+      - name: _dbt_loaded_at
+        description: "Timestamp when dbt loaded this record"
+      - name: _dbt_layer
+        description: "Data layer identifier"
+

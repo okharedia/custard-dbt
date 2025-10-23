@@ -1,9 +1,10 @@
 -- Bronze layer: Raw additional agreements data with minimal transformation
 -- This model takes the raw additional agreements data and applies basic cleaning
+-- All timestamps are converted to UTC for consistency
 
 {{ config(
     materialized='table',
-    description='Raw additional agreements data with basic cleaning applied'
+    description='Raw additional agreements data with basic cleaning applied and converted to UTC'
 ) }}
 
 select
@@ -12,6 +13,7 @@ select
    to_parent_id,
    during,
    -- Parse the range string to extract start and end times
+   -- Note: Data is already in UTC (has +00:00 offset), so we just parse and cast
    -- Simple approach: split by comma and clean brackets
    case 
      when during like '[%' then

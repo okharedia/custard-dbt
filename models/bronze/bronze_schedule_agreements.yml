@@ -1,0 +1,41 @@
+version: 2
+
+models:
+  - name: bronze_schedule_agreements
+    description: "Raw schedule agreements data with basic cleaning applied and converted to UTC"
+    columns:
+      - name: start_at
+        description: "Agreement start time (UTC)"
+        tests:
+          - not_null
+      - name: end_at
+        description: "Agreement end time (UTC)"
+        tests:
+          - not_null
+      - name: schedule_id
+        description: "Reference to schedule"
+        tests:
+          - relationships:
+              to: ref('bronze_schedules')
+              field: parent_id
+      - name: _dlt_load_id
+        description: "DLT load identifier"
+        tests:
+          - not_null
+      - name: _dlt_id
+        description: "DLT record identifier"
+        tests:
+          - unique
+          - not_null
+      - name: _dbt_loaded_at
+        description: "Timestamp when dbt loaded this record"
+      - name: _dbt_layer
+        description: "Data layer identifier"
+    
+    # Unit tests for timestamp conversion
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "start_at < end_at"
+          config:
+            where: "start_at is not null and end_at is not null"
+

@@ -25,6 +25,12 @@ models:
     # Bronze layer - raw data with minimal transformation
     bronze:
       +materialized: table
+    # Silver layer - cleaned and transformed data
+    silver:
+      +materialized: table
+    # Gold layer - business-ready aggregated data
+    gold:
+      +materialized: table
 
 # Configure clean targets
 clean-targets:

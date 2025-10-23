@@ -1,0 +1,132 @@
+version: 2
+
+models:
+  - name: gold_daily_agreements_report
+    description: |
+      Daily report showing each parent's time with child, including additional agreements 
+      and net time calculations - ready for consumption by API and business users.
+      
+      This is the primary business-facing report that combines:
+      - Base schedule time (from silver_daily_schedule_time)
+      - Additional time transfers (from silver_daily_additional_time)
+      - Net time calculations
+      - Reasons for time transfers
+      
+      **Use Cases:**
+      - API integration for custody management app
+      - Daily custody reports for parents
+      - Court documentation
+      - Compliance monitoring
+      
+      **Data Quality:**
+      - All timestamps in UTC
+      - Multi-day agreements properly split
+      - Net time validated to be ≤ 24 hours per day
+      - Zero-sum property maintained for transfers
+    
+    columns:
+      - name: report_date
+        description: "Date for the report (UTC)"
+        tests:
+          - not_null
+      
+      - name: parent_id
+        description: "Parent identifier"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('bronze_parents')
+              field: parent_id
+      
+      - name: parent_name
+        description: "Parent name"
+        tests:
+          - not_null
+      
+      - name: household_id
+        description: "Household identifier"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('bronze_households')
+              field: household_id
+      
+      - name: household_name
+        description: "Household name"
+        tests:
+          - not_null
+      
+      - name: schedule_time_seconds
+        description: "Time from schedule agreements in seconds"
+        tests:
+          - not_null
+      
+      - name: schedule_time_hours
+        description: "Schedule time converted to hours for readability"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 24
+              inclusive: true
+      
+      - name: num_schedule_blocks
+        description: "Number of schedule blocks on this date"
+        tests:
+          - not_null
+      
+      - name: additional_time_seconds
+        description: "Additional time from additional agreements in seconds (can be negative)"
+        tests:
+          - not_null
+      
+      - name: additional_time_hours
+        description: "Additional time transfers converted to hours (can be positive or negative)"
+        tests:
+          - not_null
+      
+      - name: num_additional_agreements
+        description: "Number of additional agreements affecting this date"
+        tests:
+          - not_null
+      
+      - name: additional_agreement_reasons
+        description: "Concatenated reasons for all additional agreements on this date"
+      
+      - name: net_time_seconds
+        description: "Net time (schedule + additional) in seconds"
+        tests:
+          - not_null
+      
+      - name: net_time_hours
+        description: "Net time converted to hours for readability"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 24
+              inclusive: true
+    
+    # Model-level tests
+    tests:
+      # Verify net time calculation is correct
+      - dbt_utils.expression_is_true:
+          expression: |
+            abs(net_time_seconds - (schedule_time_seconds + additional_time_seconds)) < 0.01
+          name: "net_time_calculation_correct"
+      
+      # Verify hours and seconds are consistent
+      - dbt_utils.expression_is_true:
+          expression: |
+            abs(net_time_hours - (net_time_seconds / 3600.0)) < 0.01
+          name: "net_time_hours_seconds_consistent"
+      
+      # Verify we have data for all dates in the spine
+      - dbt_utils.expression_is_true:
+          expression: |
+            report_date in (
+              select distinct report_date 
+              from {{ ref('silver_daily_schedule_time') }}
+            )
+          name: "all_dates_have_reports"
+

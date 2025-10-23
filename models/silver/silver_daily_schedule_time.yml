@@ -1,0 +1,74 @@
+version: 2
+
+models:
+  - name: silver_daily_schedule_time
+    description: |
+      Schedule time split by actual date per parent - handles multi-day agreements correctly.
+      
+      This model takes multi-day schedule agreements and splits them across the actual 
+      dates they span, ensuring each day shows only the hours that actually occur on that day.
+      
+      **Key Features:**
+      - Handles agreements spanning multiple days (e.g., 7-day weekly schedules)
+      - Correctly calculates partial days at start/end of agreements
+      - Aggregates multiple schedule blocks per day if they exist
+      - Ensures no day exceeds 24 hours
+    
+    columns:
+      - name: report_date
+        description: "Date for the schedule time"
+        tests:
+          - not_null
+      
+      - name: parent_id
+        description: "Parent identifier"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('bronze_parents')
+              field: parent_id
+      
+      - name: parent_name
+        description: "Parent name"
+        tests:
+          - not_null
+      
+      - name: household_id
+        description: "Household identifier"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('bronze_households')
+              field: household_id
+      
+      - name: household_name
+        description: "Household name"
+        tests:
+          - not_null
+      
+      - name: total_schedule_seconds
+        description: "Total scheduled time on this date in seconds"
+        tests:
+          - not_null
+      
+      - name: total_schedule_hours
+        description: "Total scheduled time on this date in hours"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 24
+              inclusive: true
+      
+      - name: num_schedule_blocks
+        description: "Number of schedule blocks on this date"
+        tests:
+          - not_null
+    
+    # Model-level tests
+    tests:
+      # Verify schedule hours match the calculated seconds
+      - dbt_utils.expression_is_true:
+          expression: "abs(total_schedule_hours - (total_schedule_seconds / 3600.0)) < 0.01"
+          name: "schedule_hours_seconds_consistency"
+
