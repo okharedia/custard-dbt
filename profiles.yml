@@ -5,6 +5,9 @@ custard:
   outputs:
     dev:
       type: duckdb 
-      path: "/Users/republik/Dev/custard-dlt/custard.duckdb"
+      path: "md:custard"
       schema: "main"
       threads: 4
+      # MotherDuck token - set via environment variable MOTHERDUCK_TOKEN
+      # or uncomment the line below and add your token
+      # token: "your_motherduck_token_here"

@@ -1,0 +1,4 @@
+setup:
+  project: custard-dbt
+  config: dev_personal
+
