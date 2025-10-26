@@ -25,8 +25,9 @@ models:
         tests:
           - not_null
           - relationships:
-              to: ref('bronze_parents')
-              field: parent_id
+              arguments:
+                to: ref('bronze_parents')
+                field: parent_id
       
       - name: parent_name
         description: "Parent name"
@@ -38,8 +39,9 @@ models:
         tests:
           - not_null
           - relationships:
-              to: ref('bronze_households')
-              field: household_id
+              arguments:
+                to: ref('bronze_households')
+                field: household_id
       
       - name: household_name
         description: "Household name"
@@ -56,9 +58,10 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 24
-              inclusive: true
+              arguments:
+                min_value: 0
+                max_value: 24
+                inclusive: true
       
       - name: num_schedule_blocks
         description: "Number of schedule blocks on this date"
@@ -69,6 +72,7 @@ models:
     tests:
       # Verify schedule hours match the calculated seconds
       - dbt_utils.expression_is_true:
-          expression: "abs(total_schedule_hours - (total_schedule_seconds / 3600.0)) < 0.01"
+          arguments:
+            expression: "abs(total_schedule_hours - (total_schedule_seconds / 3600.0)) < 0.01"
           name: "schedule_hours_seconds_consistency"
 

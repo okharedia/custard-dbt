@@ -10,8 +10,9 @@ models:
           - unique
           - not_null
           - relationships:
-              to: ref('bronze_parents')
-              field: parent_id
+              arguments:
+                to: ref('bronze_parents')
+                field: parent_id
       - name: calendar
         description: "Calendar data in iCal format"
         tests:

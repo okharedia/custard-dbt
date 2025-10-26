@@ -18,24 +18,24 @@ select
    case 
      when during like '[%' then
        -- Format: [start,end) - remove opening bracket and extract first part
-       trim(both '[]()' from split_part(during, ',', 1))::timestamp
+       CAST(RTRIM(LTRIM(SPLIT(during, ',')[OFFSET(0)],'[]()'),'[]()') as timestamp)
      when during like '(%' then
        -- Format: (start,end] - remove opening parenthesis and extract first part
-       trim(both '[]()' from split_part(during, ',', 1))::timestamp
+       CAST(RTRIM(LTRIM(SPLIT(during, ',')[OFFSET(0)],'[]()'),'[]()') as timestamp)
      else
        -- Fallback: extract first timestamp
-       trim(both '[]()' from split_part(during, ',', 1))::timestamp
+       CAST(RTRIM(LTRIM(SPLIT(during, ',')[OFFSET(0)],'[]()'),'[]()') as timestamp)
    end as start_time,
    case 
      when during like '%)' then
        -- Format: [start,end) - remove closing parenthesis and extract second part
-       trim(both '[]()' from split_part(during, ',', 2))::timestamp
+       CAST(RTRIM(LTRIM(SPLIT(during, ',')[OFFSET(1)],'[]()'),'[]()') as timestamp)
      when during like '%]' then
        -- Format: (start,end] - remove closing bracket and extract second part
-       trim(both '[]()' from split_part(during, ',', 2))::timestamp
+       CAST(RTRIM(LTRIM(SPLIT(during, ',')[OFFSET(1)],'[]()'),'[]()') as timestamp)
      else
        -- Fallback: extract second timestamp
-       trim(both '[]()' from split_part(during, ',', 2))::timestamp
+       CAST(RTRIM(LTRIM(SPLIT(during, ',')[OFFSET(1)],'[]()'),'[]()') as timestamp)
    end as end_time,
    created_at,
    updated_at,

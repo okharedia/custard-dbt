@@ -18,8 +18,9 @@ models:
         tests:
           - not_null
           - relationships:
-              to: ref('bronze_households')
-              field: household_id
+              arguments:
+                to: ref('bronze_households')
+                field: household_id
       - name: created_at
         description: "Timestamp when record was created"
       - name: updated_at

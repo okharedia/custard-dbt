@@ -16,8 +16,9 @@ models:
         description: "Reference to schedule"
         tests:
           - relationships:
-              to: ref('bronze_schedules')
-              field: parent_id
+              arguments:
+                to: ref('bronze_schedules')
+                field: parent_id
       - name: _dlt_load_id
         description: "DLT load identifier"
         tests:
@@ -35,7 +36,8 @@ models:
     # Unit tests for timestamp conversion
     tests:
       - dbt_utils.expression_is_true:
-          expression: "start_at < end_at"
+          arguments:
+            expression: "start_at < end_at"
           config:
             where: "start_at is not null and end_at is not null"
 

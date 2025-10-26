@@ -10,8 +10,9 @@ models:
           - unique
           - not_null
           - relationships:
-              to: ref('bronze_additional_agreements')
-              field: agreement_id
+              arguments:
+                to: ref('bronze_additional_agreements')
+                field: agreement_id
       - name: reason
         description: "Reason for the additional agreement"
         tests:

@@ -26,8 +26,9 @@ models:
         tests:
           - not_null
           - relationships:
-              to: ref('bronze_parents')
-              field: parent_id
+              arguments:
+                to: ref('bronze_parents')
+                field: parent_id
       
       - name: total_transfer_seconds
         description: "Net time transfer on this date in seconds (negative=given, positive=received)"
@@ -51,18 +52,20 @@ models:
     tests:
       # Verify transfer hours match the calculated seconds
       - dbt_utils.expression_is_true:
-          expression: "abs(total_transfer_hours - (total_transfer_seconds / 3600.0)) < 0.01"
+          arguments:
+            expression: "abs(total_transfer_hours - (total_transfer_seconds / 3600.0)) < 0.01"
           name: "transfer_hours_seconds_consistency"
       
       # Verify zero-sum property: total transfers across all parents per day should sum to ~0
       # (allowing for small rounding errors)
       - dbt_utils.expression_is_true:
-          expression: |
-            report_date in (
-              select report_date
-              from {{ ref('silver_daily_additional_time') }}
-              group by report_date
-              having abs(sum(total_transfer_seconds)) < 1.0
-            )
+          arguments:
+            expression: |
+              report_date in (
+                select report_date
+                from {{ ref('silver_daily_additional_time') }}
+                group by report_date
+                having abs(sum(total_transfer_seconds)) < 1.0
+              )
           name: "zero_sum_transfers_per_day"
 

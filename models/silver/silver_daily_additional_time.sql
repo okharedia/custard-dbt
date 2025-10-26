@@ -23,8 +23,21 @@ with additional_agreements_expanded as (
       and aa.end_time is not null
 ),
 
-date_series_from_parent as (
-    -- Generate date series for from_parent (giving away time)
+date_series as (
+    select 
+        agreement_id,
+        from_parent_id,
+        to_parent_id,
+        start_time,
+        end_time,
+        reason,
+        report_date
+    from additional_agreements_expanded,
+    unnest(GENERATE_DATE_ARRAY(date(start_time), date(end_time), INTERVAL 1 DAY)) as report_date
+),
+
+unioned_parents as (
+    -- create a row for each parent involved in the agreement for each day
     select 
         agreement_id,
         from_parent_id as parent_id,
@@ -32,61 +45,41 @@ date_series_from_parent as (
         end_time,
         reason,
         'given' as transfer_type,
-        unnest(
-            generate_series(
-                date(start_time),
-                date(end_time),
-                interval '1 day'
-            )
-        ) as report_date
-    from additional_agreements_expanded
-),
-
-date_series_to_parent as (
-    -- Generate date series for to_parent (receiving time)
-    select 
+        report_date
+    from date_series
+    union all
+    select
         agreement_id,
         to_parent_id as parent_id,
         start_time,
         end_time,
         reason,
         'received' as transfer_type,
-        unnest(
-            generate_series(
-                date(start_time),
-                date(end_time),
-                interval '1 day'
-            )
-        ) as report_date
-    from additional_agreements_expanded
-),
-
-all_date_series as (
-    -- Combine both from and to parents
-    select * from date_series_from_parent
-    union all
-    select * from date_series_to_parent
+        report_date
+    from date_series
 ),
 
 daily_time_calculation as (
     -- Calculate actual hours for each date
     select 
         parent_id,
-        report_date::date as report_date,
+        report_date,
         agreement_id,
         transfer_type,
         reason,
         -- Calculate the portion of the agreement that falls on this specific date
-        extract(epoch from (
+        DATETIME_DIFF(
             least(
-                end_time,
-                (report_date::date + interval '1 day')::timestamp
-            ) - greatest(
-                start_time,
-                report_date::date::timestamp
-            )
-        )) as time_seconds_on_date
-    from all_date_series
+                DATETIME(end_time),
+                DATETIME(TIMESTAMP(DATE_ADD(report_date, INTERVAL 1 DAY)))
+            ),
+            greatest(
+                DATETIME(start_time),
+                DATETIME(TIMESTAMP(report_date))
+            ),
+            SECOND
+        ) as time_seconds_on_date
+    from unioned_parents
 ),
 
 daily_transfers as (
@@ -113,7 +106,7 @@ aggregated_daily_transfers as (
         sum(net_transfer_seconds) as total_transfer_seconds,
         round(sum(net_transfer_seconds) / 3600.0, 2) as total_transfer_hours,
         count(distinct agreement_id) as num_agreements,
-        string_agg(distinct reason, '; ') as transfer_reasons
+        string_agg(distinct reason, '; ' order by reason) as transfer_reasons
     from daily_transfers
     group by parent_id, report_date
 )

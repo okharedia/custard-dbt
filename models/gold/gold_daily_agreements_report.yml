@@ -35,8 +35,9 @@ models:
         tests:
           - not_null
           - relationships:
-              to: ref('bronze_parents')
-              field: parent_id
+              arguments:
+                to: ref('bronze_parents')
+                field: parent_id
       
       - name: parent_name
         description: "Parent name"
@@ -48,8 +49,9 @@ models:
         tests:
           - not_null
           - relationships:
-              to: ref('bronze_households')
-              field: household_id
+              arguments:
+                to: ref('bronze_households')
+                field: household_id
       
       - name: household_name
         description: "Household name"
@@ -66,9 +68,10 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 24
-              inclusive: true
+              arguments:
+                min_value: 0
+                max_value: 24
+                inclusive: true
       
       - name: num_schedule_blocks
         description: "Number of schedule blocks on this date"
@@ -103,30 +106,34 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 24
-              inclusive: true
+              arguments:
+                min_value: 0
+                max_value: 24
+                inclusive: true
     
     # Model-level tests
     tests:
       # Verify net time calculation is correct
       - dbt_utils.expression_is_true:
-          expression: |
-            abs(net_time_seconds - (schedule_time_seconds + additional_time_seconds)) < 0.01
+          arguments:
+            expression: |
+              abs(net_time_seconds - (schedule_time_seconds + additional_time_seconds)) < 0.01
           name: "net_time_calculation_correct"
       
       # Verify hours and seconds are consistent
       - dbt_utils.expression_is_true:
-          expression: |
-            abs(net_time_hours - (net_time_seconds / 3600.0)) < 0.01
+          arguments:
+            expression: |
+              abs(net_time_hours - (net_time_seconds / 3600.0)) < 0.01
           name: "net_time_hours_seconds_consistent"
       
       # Verify we have data for all dates in the spine
       - dbt_utils.expression_is_true:
-          expression: |
-            report_date in (
-              select distinct report_date 
-              from {{ ref('silver_daily_schedule_time') }}
-            )
+          arguments:
+            expression: |
+              report_date in (
+                select distinct report_date 
+                from {{ ref('silver_daily_schedule_time') }}
+              )
           name: "all_dates_have_reports"
 
