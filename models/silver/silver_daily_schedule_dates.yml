@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: silver_daily_schedule_dates
+    description: "Generates a daily series of dates from iCal strings in bronze_schedules, including start and end timestamps for each event."
+    columns:
+      - name: schedule_id
+        description: "The ID of the schedule, corresponding to parent_id."
+        tests:
+          - not_null
+      - name: event_date
+        description: "The specific date of the event."
+        tests:
+          - not_null
+      - name: start_at
+        description: "The start timestamp of the event."
+        tests:
+          - not_null
+      - name: end_at
+        description: "The end timestamp of the event."
+        tests:
+          - not_null
+
+
+

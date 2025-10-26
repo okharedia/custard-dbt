@@ -84,7 +84,7 @@ models:
               -- Extract hour from raw 'during' string and compare with parsed start_time
               -- Example: '[2025-08-15 00:00:00+00:00,...' should parse to hour 0, not 2
               cast(substring(
-                trim(both '[]()' from split_part(during, ',', 1)),
+                regexp_extract(during, r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})'),
                 12, 2
               ) as integer) = extract(hour from start_time)
           config:
@@ -108,7 +108,7 @@ models:
             expression: |
               -- Extract year from raw string and verify it matches parsed timestamp
               cast(substring(
-                trim(both '[]()' from split_part(during, ',', 1)),
+                regexp_extract(during, r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})'),
                 1, 4
               ) as integer) = extract(year from start_time)
           name: "parsing_preserves_datetime_values"

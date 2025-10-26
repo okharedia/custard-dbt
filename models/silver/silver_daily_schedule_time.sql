@@ -7,43 +7,29 @@
     description='Schedule time split by actual date per parent with household information'
 ) }}
 
-with schedule_agreements_with_dates as (
-    -- Join schedules with agreements and parent/household info
+with schedule_events as (
+    -- Get schedule events with dates from the silver model
     select 
-        sa.start_at,
-        sa.end_at,
-        sa.schedule_id,
-        s.parent_id,
-        p.parent_name,
-        p.household_id,
-        h.household_name
-    from {{ ref('bronze_schedule_agreements') }} sa
-    join {{ ref('bronze_schedules') }} s on sa.schedule_id = s.parent_id
-    join {{ ref('bronze_parents') }} p on s.parent_id = p.parent_id
-    join {{ ref('bronze_households') }} h on p.household_id = h.household_id
-    where sa.start_at is not null 
-      and sa.end_at is not null
+        schedule_id,
+        event_date,
+        start_at,
+        end_at
+    from {{ ref('silver_daily_schedule_dates') }}
 ),
 
-date_series as (
-    -- Generate a series of dates for each agreement
-    -- This handles agreements that span multiple days
-    select 
-        parent_id,
-        parent_name,
-        household_id,
-        household_name,
-        start_at,
-        end_at,
-        -- Generate all dates from start to end (inclusive)
-        unnest(
-            generate_series(
-                date(start_at),
-                date(end_at),
-                interval '1 day'
-            )
-        ) as report_date
-    from schedule_agreements_with_dates
+schedule_events_with_details as (
+    -- Join with parent and household information
+    select
+        se.schedule_id as parent_id,
+        p.parent_name,
+        p.household_id,
+        h.household_name,
+        se.event_date as report_date,
+        se.start_at,
+        se.end_at
+    from schedule_events se
+    join {{ ref('bronze_parents') }} p on se.schedule_id = p.parent_id
+    join {{ ref('bronze_households') }} h on p.household_id = h.household_id
 ),
 
 daily_time_calculation as (
@@ -69,7 +55,7 @@ daily_time_calculation as (
                 report_date::date::timestamp
             )
         )) as time_seconds_on_date
-    from date_series
+    from schedule_events_with_details
 ),
 
 aggregated_daily_time as (
